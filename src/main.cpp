@@ -1,7 +1,10 @@
 #include "M5Atom.h"
 #include "AtomSocket.h"
+#include "Secure.h"
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <time.h>
 
 #define RXD   22
 #define RELAY 23
@@ -9,19 +12,19 @@
 ATOMSOCKET ATOM;
 HardwareSerial AtomSerial(2);
 
-// WiFi and MQTT configuration
-#define WIFI_SSID "CHANGEME"
-#define WIFI_PASSWORD "*CHANGEME"
-#define MQTT_DEVICE "atom1"
-#define MQTT_BROKER "192.0.0.0"
-#define MQTT_PORT 1883
-#define MQTT_USER "CHANGEME"
-#define MQTT_PASSWORD "CHANGEME"
-
 WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+WiFiClientSecure wiFiClientSecure;
+//PubSubClient mqttClient(wifiClient);
+PubSubClient mqttClient;
 
 bool RelayFlag = true;
+bool SecureMqtt = true;
+
+// NTP Server settings
+const char *ntp_server = "pool.ntp.org";     // Default NTP server
+// const char* ntp_server = "cn.pool.ntp.org"; // Recommended NTP server for users in China
+const long gmt_offset_sec = 0;            // GMT offset in seconds (adjust for your time zone)
+const int daylight_offset_sec = 0;        // Daylight saving time offset in seconds
 
 void connectWiFi() {
     Serial.print("Connecting to WiFi...");
@@ -31,6 +34,23 @@ void connectWiFi() {
         Serial.print(".");
     }
     Serial.println("\nConnected to WiFi");
+}
+
+void syncTime() {
+    configTime(gmt_offset_sec, daylight_offset_sec, ntp_server);
+    Serial.print("Waiting for NTP time sync: ");
+    while (time(nullptr) < 8 * 3600 * 2) {
+        delay(1000);
+        Serial.print(".");
+    }
+    Serial.println("Time synchronized");
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        Serial.print("Current time: ");
+        Serial.println(asctime(&timeinfo));
+    } else {
+        Serial.println("Failed to obtain local time");
+    }
 }
 
 void registerWithHomeAssistant() {
@@ -61,6 +81,20 @@ void registerWithHomeAssistant() {
 }
 
 void connectMQTT() {
+
+    if (SecureMqtt) {
+        Serial.println("Using secure MQTT");
+        Serial.println("CA Certificate contents:");
+        Serial.println(ca_cert); // Print the exact string
+        Serial.println("Length of ca_cert: ");
+        Serial.println(strlen_P(ca_cert)); // Use strlen_P for PROGMEM strings
+        wiFiClientSecure.setCACert(ca_cert);
+        mqttClient.setClient(wiFiClientSecure);
+    } else {
+        Serial.println("Using non-secure MQTT");
+        mqttClient.setClient(wifiClient);
+    }
+
     mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
 
     // Increase buffer size to handle larger payloads
@@ -75,7 +109,7 @@ void connectMQTT() {
             mqttClient.subscribe(commandTopic.c_str());
 
             // Register device with Home Assistant
-            registerWithHomeAssistant();
+            //registerWithHomeAssistant();
         } else {
             Serial.print("Failed, rc=");
             Serial.print(mqttClient.state());
@@ -127,8 +161,9 @@ void setup() {
 
     // Initialize WiFi and MQTT
     connectWiFi();
-    mqttClient.setCallback(mqttCallback);
+    syncTime();  // X.509 validation requires synchronization time
     connectMQTT();
+    mqttClient.setCallback(mqttCallback);
 
     // Register initial state
     setDeviceState(RelayFlag);
