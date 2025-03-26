@@ -1,3 +1,4 @@
+/*
 #include "M5Atom.h"
 #include <Arduino.h>
 
@@ -27,4 +28,7 @@ void loop() {
  M5Atom Product Page M5Atom GitHub Repository M5Atom Arduino Library M5Atom Arduino Library Examples
  Related Posts 
  M5Stack: Getting Started with the M5Stack Core2 ESP32 IoT Development Kit ESP32: Getting Started with the ESP32 Development Board ESP32: Getting Started with the M5Stack Core2 ESP32 IoT Development
+ lib_deps = 
+    fastled/FastLED@3.9.9
+    m5stack/M5Atom@^0.1.3
  */
