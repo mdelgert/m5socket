@@ -1,0 +1,16 @@
+{
+    "name": "Atom Relay",
+    "state_topic": "homeassistant/switch/atom1/state",
+    "command_topic": "homeassistant/switch/atom1/set",
+    "payload_on": "ON",
+    "payload_off": "OFF",
+    "state_on": "ON",
+    "state_off": "OFF",
+    "unique_id": "atom1",
+    "device": {
+        "identifiers": ["atom1"],
+        "name": "Atom Relay",
+        "model": "M5Atom",
+        "manufacturer": "M5Stack"
+    }
+}
